@@ -4,12 +4,14 @@ HOST: https://addons-ecs.forgesvc.net
 # Twitch App API
 This is a fork of https://twitchappapi.docs.apiary.io/
 
-Each endpoint has `.../timestamp` sub-endpoint that describes when the information of hat endpoints was last updated. Returns ISO 8201 timedate.
+Some (most?) endpoint have `.../timestamp` sub-endpoint that describes when the information of hat endpoints was last updated. Returns ISO 8201 timedate.
 
 # Data Structures
 
 ## ISO 8601 (string)
 ISO 8601
+
+## regex (string)
 
 ## Author (object)
 + name: SangarWasTaken (string) User's display username
@@ -40,16 +42,40 @@ ISO 8601
 + avatarId: 6039 (number)
 + gameId: 432 (number)
 
-## Addon Category Section (object)
+## Category Section (object)
 + id: 8 (number)
 + gameId: 432 (number)
 + name: Mods (string)
 + packageType: 6 (number)
 + path: mods (string)
-+ initialInclusionPattern: `.` (string)
-+ extraIncludePattern (string, nullable)
++ initialInclusionPattern: `.` (regex)
++ extraIncludePattern (regex, nullable)
     **[Nullable]**
 + gameCategoryId: 6 (number)
+    Can be used to [list categories](#reference/0/category/list-categories-in-section) of the section
+
+## Game File (object)
++ id: 34 (number)
++ gameId: 432  (number)
++ isRequired: true (boolean)
++ fileName: `instance.json` (string)
++ fileType: 3 (number)
++ platformType: 4 (number)
+
+## Game Detection Hint (object)
++ id: 9 (number)
++ hintType: 2 (number)
++ hintPath: `%Public%\Games\Minecraft` (string)
++ hintKey (object)
++ hintOptions: 0 (number)
++ gameId: 432 (number)
+
+## File Parsing Rule (object)
++ id: 0 (number)
++ commentStripPattern: `(?s)<!--.*?-->` (regex)
++ fileExtension: `.xml` (string)
++ inclusionPattern: `(?i)<(?:Include|Script)\\s+file=[\"\"']((?:(?<!\\.\\.).)+)[\"\"']\\s*/>` (regex)
++ gameId: 1 (number)
 
 ## Addon Game Version Files (object)
 + gameVersion: 1.12.2 (string)
@@ -72,6 +98,7 @@ ISO 8601
 ## Module (object)
 + foldername: `META-INF` (string)
 + fingerprint: 1959901996 (number)
+    See [Fingerprint](#reference/0/fingerprint)
 + type: 3 (number)
 
 ## Addon Status (enum)
@@ -86,7 +113,10 @@ ISO 8601
 + 9 (number) - Deleted
 + 10 (number) - Under review
 
+
+
 # Endpoints
+
 ## Addon [/api/v2/addon]
 
 + Attributes
@@ -94,7 +124,7 @@ ISO 8601
     + name: OpenComputers (string) A user friendly addon name
     + authors (array[Author])
     + attachments (array[Attachment])
-        An array of screenshots, icons and avatars
+        An array describing screenshots, icons and avatars
     + websiteUrl: `https://www.curseforge.com/minecraft/mc-mods/opencomputers` (string)
     + gameId: 432 (number)
     + summary: Modular, persistent, programmable computers and robots. (string)
@@ -102,11 +132,11 @@ ISO 8601
         The id of a File that should be downloaded by default
     + downloadCount: 17023473.0 (number)
     + latestFiles (array[File])
-        Array of [files](File) Sorted by ID or upload date, ascending
+        Array of [files](#reference/0/file) Sorted by ID or upload date, ascending
     + status (Addon Status)
     + primaryCategoryId: 412 (number)
     + categories (array[Addon Category])
-    + categorySection (Addon Category Section)
+    + categorySection (Category Section)
     + slug: `opencomputers` (string)
     + gameVersionLatestFiles (array[Addon Game Version Files])
     + isFeatured: false (boolean)
@@ -123,37 +153,52 @@ ISO 8601
     + isExperiemental: false (boolean)
 
 ### Addon Info [GET /api/v2/addon/{addonID}]
+Returns info of a single Addon.
+
++ Parameters
+    + addonID: 223008 (number)
+
 + Response 200 (application/json)
     + Attributes (Addon)
 
 ### Addon Info (Multiple) [POST]
-Returns at most as many objects as requested, 
+Returns at most as many Addon objects as requested.
 
 + Request (application/json)
+    + Attributes (array[number])
+        + Sample
+            + 223008
+    + Body
 
-        [
-                310806,
-                304026
-        ]
+            [
+                223008
+            ]
+
 
 + Response 200 (application/json)
     + Attributes (array[Addon])
 
 ### Search [GET /api/v2/addon/search?gameId={gameId}&gameVersion={gameVersion}&categoryId={categoryID}&index={index}&pageSize={pageSize}5&searchFilter={searchFilter}&sectionId={sectionId}&sort={sort}]
+
+Main search endpoint for addons. Returns an array of matching addons. Requires at least a game ID.
+Root categories search includes all child categories.
+
 + Parameters
     + gameId: 432 (integer, required)
     + gameVersion: `1.12.2` (string, optional)
     + categoryID: 0 (integer, optional)
     + index: 0 (integer, optional)
-    + pageSize: 25 (integer, optional)
-    + searchFilter: `ultimate` (string, optional)
-    + sectionId: 4471 (integer, optional)
+    + pageSize: 1 (integer, optional)
+    + searchFilter: `opencomputers` (string, optional)
+    + sectionId (integer, optional)
     + sort: 0 (integer, optional)
-    
+
 + Response 200 (application/json)
     + Attributes (array[Addon])
 
 ### List Featured Addons [POST /api/v2/addon/featured]
+
+Returns an array of Addons
 
 + Request (application/json)
     + Attributes (object)
@@ -167,12 +212,13 @@ Returns at most as many objects as requested,
     + Attributes (array[Addon])
 
 ### Addon Description [GET /api/v2/addon/{addonID}/description]
+
 Description of an addon as HTML
 
 + Parameters
     + addonID: `310806` (integer)
 
-+ Response 200 (text/plain)
++ Response 200 (text/html)
 
         <p>Shows a custom watermark in the top centre of the users screen.</p>
         <p>&nbsp;</p>
@@ -209,11 +255,14 @@ Description of an addon as HTML
 
 ### Addon Files [GET /api/v2/addon/{addonID}/files]
 
+Array of [files](#reference/0/file) Sorted by ID or upload date, ascending
+
 + Parameters
     + addonID: `304026` (integer)
 
 + Response 200 (application/json)
     + Attributes (array[File])
+
 
 ## File [/api/v2/addon/{projectId}/files/{id}]
 
@@ -294,40 +343,44 @@ Description of an addon as HTML
     + gameVersionFlavor (number, nullable)
         **[Nullable]**
 
-### Information [GET /api/v2/addon/{addonID}/file/{fileID}]
+### Information [GET /api/v2/addon/{projectId}/file/{id}]
 
 + Parameters
-    + addonID: `223008` (integer)
-    + fileID: `2670112` (integer) 
-    
+    + projectId: `223008` (integer)
+    + id: `2670112` (integer)
+
 + Response 200 (application/json)
     + Attributes (File)
 
-### Changelog [GET /api/v2/addon/{addonID}/file/{fileID}/changelog]
+### Changelog [GET /api/v2/addon/{projectId}/file/{id}/changelog]
 
 + Parameters
-    + addonID: `310806` (integer)
-    + fileID: `2657461` (integer) 
+    + projectId: `310806` (integer)
+    + id: `2657461` (integer)
 
 + Response 200 (text/plain)
 
         <p>Initial release</p>
 
-### Download URL [GET /api/v2/addon/{addonID}/file/{fileID}/download-url]
+### Download URL [GET /api/v2/addon/{projectId}/file/{id}/download-url]
 
 + Parameters
-    + addonID: `296062` (integer)
-    + fileID: `2724357` (integer) 
-    
+    + projectId: `296062` (integer)
+    + id: `2724357` (integer)
+
 + Response 200 (text/plain)
 
         https://edge.forgecdn.net/files/2724/357/SkyFactory4-4.0.8.zip
 
+
 ## Fingerprint [/api/v2/fingerprint]
-### Get Addon Files By Fingerprint [POST]
+
+Uses default [MurmurHash2](https://en.wikipedia.org/wiki/MurmurHash) with seed `1`
+
+### Find Addon Files [POST]
 
 + Request (application/json)
-    
+
         [
                 3067488310
         ]
@@ -347,7 +400,9 @@ Description of an addon as HTML
         + installedFingerprints: 3028671922 (array[number])
         + unmatchedFingerprints (array)
 
+
 ## Minecraft [/api/v2/minecraft]
+
 + Attributes (object)
     + id: 52 (number)
     + gameVersionId: 6756 (number)
@@ -364,20 +419,22 @@ Description of an addon as HTML
 + Response 200 (application/json)
     + Attributes (array[Minecraft])
 
-### Version Info [GET /api/v2/minecraft/version/{VersionString}]
+### Version Info [GET /api/v2/minecraft/version/{versionString}]
 + Parameters
-    + VersionString: `1.12.2` (string)
-    
+    + versionString: `1.12.2` (string)
+
 + Response 200 (application/json)
     + Attributes (Minecraft)
 
+
 ## Minecraft Modloader [/api/v2/minecraft/modloader]
+
 + Attributes
     - id: 2971 (number)
-    - gameVersionId`: 6166 (number)
-    - minecraftGameVersionId`: 42 (number)
-    - forgeVersion: 12.17.0.1980 (string)
-    - name: forge-12.17.0.1980 (string)
+    - gameVersionId: 6166 (number)
+    - minecraftGameVersionId: 42 (number)
+    - forgeVersion: `12.17.0.1980` (string)
+    - name: `forge-12.17.0.1980` (string)
     - type: 1 (number)
     - downloadUrl: `https://modloaders.cursecdn.com/647622546/maven/net/minecraftforge/forge/1.9.4-12.17.0.1980-1.10.0/forge-1.9.4-12.17.0.1980-1.10.0.jar` (string)
     - filename: `forge-1.9.4-12.17.0.1980-1.10.0.jar` (string)
@@ -409,7 +466,7 @@ Description of an addon as HTML
 + Response 200 (application/json)
     + Attributes (array[Minecraft Modloader List])
         + Sample
-            + (Minecraft Modloader List)
+            + (object)
                 + name: `forge-9.11.1.965` (string)
                 + gameVersion: `1.6.4` (string)
                 + latest: false (boolean)
@@ -434,14 +491,20 @@ Description of an addon as HTML
                 + recommended: true
                 + dateModified: `2017-01-01T00:00:00Z`
 
+
 ### Get Modloader Info [GET /api/v2/minecraft/modloader/{name}]
+
 + Parameters
     + name: `forge-12.17.0.1980` (string)
-    
+
 + Response 200 (application/json)
     + Attributes (Minecraft Modloader)
 
+
 ## Category [/api/v2/category]
+
+Generic collection of addons. [Game](#reference/0/game) object specifies root categories through Category Section objects.
+
 + Attributes
     + id: 423 (number)
     + name: `Map and Information` (string)
@@ -450,47 +513,84 @@ Description of an addon as HTML
     + dateModified: `2014-05-08T17:42:23.74Z` (ISO 8601)
     + parentGameCategoryId: 6 (number, nullable)
         **[Nullable]**
+
+        Is null for root categories
     + rootGameCategoryId: 6 (number, nullable)
         **[Nullable]**
+
+        Is null for root categories
     + gameId: 432 (number)
 
-### Get Category List [GET /api/v2/category/?gameId={gameId}]
+### List [GET /api/v2/category/{?gameId}]
+
 + Parameters
     + gameId: `432` (integer, optional)
 
 + Response 200 (application/json)
     + Attributes (array[Category])
 
-### Get Category Info [GET /api/v2/category/{id}]
+### Info [GET /api/v2/category/{id}]
+
 + Parameters
     + id: `423` (integer)
-    
+
 + Response 200 (application/json)
     + Attributes (Category)
 
-### Get Category Section Info [GET /api/v2/category/section/{SectionID}]
+### List Categories in Section [GET /api/v2/category/section/{id}]
+
+Get categories of a section. Works only with root categories (described by Category Section objects of [Game](#reference/0/game)).
+Uses the Section's Category ID `gameCategoryId`, not Section's own ID. Returns 404 on anything else
+
 + Parameters
-    + SectionID: `6` (integer)
-    
+    + id: `6` (integer)
+        Value of *gameCategoryId* from Category Section object.
+
 + Response 200 (application/json)
     + Attributes (array[Category])
 
 
 ## Game [/api/v2/game{?supportsAddons}]
 
++ Parameters
+    + supportsAddons: true (boolean, optional)
+
 + Attributes (object)
-    + blah: blahblah (string)
+    + id: 432 (number)
+    + name: `Minecraft` (string)
+    + slug: `minecraft` (string)
+    + dateModified: `2019-07-11T21:23:30.71Z` (ISO 8601)
+    + gameFiles (array[Game File])
+    + gameDetectionHints (array[Game Detection Hint])
+    + fileParsingRules (array[File Parsing Rule])
+    + categorySections (array[Category Section])
+    + maxFreeStorage: 0 (number)
+    + maxPremiumStorage: 0 (number)
+    + maxFileSize: 0 (number)
+    + addonSettingsFolderFilter: null (string, nullable)
+    + addonSettingsStartingFolder: null (string, nullable)
+    + addonSettingsFileFilter: null (string, nullable)
+    + addonSettingsFileRemovalFilter: null (string, nullable)
+    + supportsAddons: true (boolean)
+    + supportsPartnerAddons: false (boolean)
+    + supportedClientConfiguration: 3 (number)
+    + supportsNotifications: true (boolean)
+    + profilerAddonId: 0 (number)
+    + twitchGameId: 27471 (number)
+    + clientGameSettingsId: 24 (number)
 
 ### Get Games List [GET /api/v2/game{?supportsAddons}]
+
 + Parameters
-    + supportsAddons (boolean, optional)
+    + supportsAddons: true (boolean, optional)
 
 + Response 200 (application/json)
     + Attributes (array[Game])
 
 ### Get Game Info [GET /api/v2/game/{gameId}]
+
 + Parameters
-    + gameId: `432` (integer, required)
+    + gameId: 432 (integer, required)
 
 + Response 200 (application/json)
     + Attributes (Game)
